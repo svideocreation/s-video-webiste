@@ -54,6 +54,10 @@ function highlightDedicatedPageNav() {
     activeKey = 'products';
   } else if (path.includes('/services')) {
     activeKey = 'services';
+  } else if (path.includes('/about')) {
+    activeKey = 'about';
+  } else if (path.includes('/contact')) {
+    activeKey = 'contact';
   }
 
   if (!activeKey) return;
@@ -537,6 +541,9 @@ function initCatalogueNav() {
 
   if (!navBtns.length || !sections.length) return;
 
+  let isClickScrolling = false;
+  let clickScrollTimeout = null;
+
   function setActiveBtn(targetId) {
     navBtns.forEach((btn) => {
       const href = btn.getAttribute('href');
@@ -552,21 +559,34 @@ function initCatalogueNav() {
       const targetId = btn.getAttribute('href')?.replace('#', '');
       if (targetId) {
         setActiveBtn(targetId);
+        isClickScrolling = true;
+        clearTimeout(clickScrollTimeout);
+        const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 50 : 800;
+        clickScrollTimeout = setTimeout(() => {
+          isClickScrolling = false;
+        }, duration);
       }
     });
   });
 
+  // User wheel or touch unlocks click scroll lock immediately
+  window.addEventListener('wheel', () => { isClickScrolling = false; }, { passive: true });
+  window.addEventListener('touchstart', () => { isClickScrolling = false; }, { passive: true });
+
   // ScrollSpy via IntersectionObserver
   if ('IntersectionObserver' in window) {
     const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          setActiveBtn(entry.target.id);
-        }
-      });
+      if (isClickScrolling) return;
+
+      const intersecting = entries.filter(e => e.isIntersecting);
+      if (intersecting.length > 0) {
+        // Pick the intersecting section closest to top reading zone
+        intersecting.sort((a, b) => Math.abs(a.boundingClientRect.top) - Math.abs(b.boundingClientRect.top));
+        setActiveBtn(intersecting[0].target.id);
+      }
     }, {
-      rootMargin: '-20% 0px -60% 0px',
-      threshold: 0
+      rootMargin: '-15% 0px -55% 0px',
+      threshold: [0, 0.2, 0.5]
     });
 
     sections.forEach((sec) => observer.observe(sec));
